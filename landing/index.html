@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>모렝이 일정위젯 — 다운로드</title>
+<style>
+  :root{
+    --ink:#2b2e48; --sub:#8a8fa6; --pink:#f19ad6; --pink-deep:#e072bd;
+    --pink-soft:#fdeef8; --line:#eeecf4; --card:#fff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Malgun Gothic",sans-serif;
+    -webkit-font-smoothing:antialiased;line-height:1.6;
+    background:
+      radial-gradient(900px 500px at 85% -5%, #ffe9f7, transparent 60%),
+      radial-gradient(700px 400px at 5% 15%, #eef4ff, transparent 55%),
+      #fbfbfd;}
+  .wrap{max-width:760px;margin:0 auto;padding:0 22px 90px}
+
+  /* 히어로 */
+  header{text-align:center;padding:64px 0 40px}
+  .char{width:132px;height:132px;object-fit:contain;animation:bob 3.2s ease-in-out infinite;
+    filter:drop-shadow(0 14px 22px rgba(43,46,72,.18))}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+  h1{font-size:31px;margin:18px 0 8px;letter-spacing:-.9px;font-weight:800}
+  .sub{color:var(--sub);font-size:15.5px;margin:0 auto;max-width:430px;word-break:keep-all}
+
+  /* 다운로드 */
+  .dl{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:34px}
+  .btn{display:inline-flex;align-items:center;gap:9px;border:0;cursor:pointer;text-decoration:none;
+    background:linear-gradient(135deg,var(--pink),var(--pink-deep));color:#fff;
+    font-size:16px;font-weight:800;padding:16px 34px;border-radius:16px;font-family:inherit;
+    box-shadow:0 10px 26px rgba(224,114,189,.36);transition:.18s}
+  .btn:hover{transform:translateY(-2px);box-shadow:0 14px 32px rgba(224,114,189,.44)}
+  .btn:active{transform:translateY(0)}
+  .alt{font-size:13.5px;color:var(--sub)}
+  .alt a{color:var(--pink-deep);font-weight:700;text-decoration:none;border-bottom:1.5px solid var(--pink-soft)}
+  .alt a:hover{border-color:var(--pink)}
+  .meta{font-size:12px;color:#b0b4c6;margin-top:2px}
+
+  /* 섹션 */
+  section{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:30px 30px 26px;
+    margin-top:22px;box-shadow:0 4px 20px rgba(43,46,72,.05)}
+  h2{font-size:18px;margin:0 0 4px;letter-spacing:-.4px;display:flex;align-items:center;gap:8px}
+  .lede{color:var(--sub);font-size:13.5px;margin:0 0 20px}
+
+  ol{counter-reset:s;list-style:none;padding:0;margin:0}
+  ol li{counter-increment:s;position:relative;padding:0 0 18px 42px;font-size:14.5px}
+  ol li:last-child{padding-bottom:0}
+  ol li:before{content:counter(s);position:absolute;left:0;top:1px;width:27px;height:27px;
+    background:var(--pink-soft);color:var(--pink-deep);border-radius:50%;
+    display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800}
+  ol li b{font-weight:800}
+
+  .warn{background:#fff8e8;border:1px solid #ffe3ad;border-radius:14px;padding:14px 16px;
+    font-size:13.5px;margin-top:18px;word-break:keep-all}
+  .warn b{color:#b57d12}
+  .tip{background:var(--pink-soft);border-radius:14px;padding:14px 16px;font-size:13.5px;margin-top:16px;word-break:keep-all}
+
+  code{background:#f4f3f9;border:1px solid var(--line);border-radius:7px;padding:2px 7px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;word-break:break-all}
+  pre{background:#2b2e48;color:#f3f0fa;border-radius:12px;padding:14px 16px;overflow-x:auto;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;margin:12px 0 0}
+
+  table{width:100%;border-collapse:collapse;margin-top:6px;font-size:14px}
+  td{padding:11px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  td:first-child{color:var(--sub);width:44%;font-weight:600}
+  td:last-child{font-weight:700}
+
+  .chars{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:6px}
+  .chars img{width:62px;height:62px;object-fit:contain}
+
+  details{border-top:1px solid var(--line);padding:14px 0 0;margin-top:14px}
+  summary{cursor:pointer;font-weight:800;font-size:14px;list-style:none}
+  summary::-webkit-details-marker{display:none}
+  summary:before{content:"＋ ";color:var(--pink-deep);font-weight:800}
+  details[open] summary:before{content:"− "}
+  details p{font-size:13.5px;color:#5c6178;margin:10px 0 0}
+
+  footer{text-align:center;color:#b0b4c6;font-size:12.5px;margin-top:34px;line-height:1.8}
+  @media (max-width:560px){
+    header{padding:44px 0 30px} h1{font-size:26px} section{padding:24px 20px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <img class="char" src="img/moreng_happy.webp" alt="머랭">
+    <h1>모렝이 일정위젯</h1>
+    <p class="sub">화면 한켠에서 오늘 일정을 챙겨주고, 회의 시간이 되면 말풍선으로 콕 알려줘요.</p>
+
+    <div class="dl">
+      <a class="btn" id="mainBtn" href="#">다운로드</a>
+      <div class="alt" id="altLine"></div>
+      <div class="meta">약 95MB · 맥(Apple Silicon) · 사내 배포용</div>
+    </div>
+  </header>
+
+  <section>
+    <h2>🚀 설치하기</h2>
+    <p class="lede" id="installLede">2분이면 끝나요.</p>
+
+    <div id="macSteps">
+      <ol>
+        <li>위 버튼으로 <b>.dmg 파일</b>을 받아서 더블클릭</li>
+        <li>창이 열리면 <b>모렝이 아이콘을 Applications 폴더로 드래그</b></li>
+        <li>런치패드에서 <b>모렝이 일정위젯</b> 실행</li>
+      </ol>
+      <div class="warn">
+        <b>⚠️ "확인되지 않은 개발자" 경고가 뜨면</b><br>
+        사내에서 만든 앱이라 애플 인증을 안 받아서 그래요. <b>처음 한 번만</b> 앱을
+        <b>우클릭 → 열기</b> → 경고창에서 <b>"열기"</b> 를 누르면 이후엔 그냥 열립니다.
+        <pre>xattr -cr /Applications/Moreng.app</pre>
+        <div style="font-size:12.5px;color:#8a7440;margin-top:8px">그래도 안 되면 터미널에 위 명령을 붙여넣어 주세요.</div>
+      </div>
+    </div>
+
+    <div id="winSteps" style="display:none">
+      <ol>
+        <li>위 버튼으로 <b>Setup.exe</b> 를 받아서 실행</li>
+        <li><b>"Windows가 PC를 보호했습니다"</b> 창이 뜨면 → <b>추가 정보</b> → <b>실행</b></li>
+        <li>설치 위치를 정하고 설치 완료</li>
+      </ol>
+      <div class="warn">
+        <b>⚠️ 파란 경고창은 정상이에요</b><br>
+        사내 배포 앱이라 뜨는 안내예요. <b>추가 정보 → 실행</b> 으로 넘어가시면 됩니다.
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>📅 구글 캘린더 연결</h2>
+    <p class="lede">처음 한 번만 하면 돼요. (컴퓨터 웹 브라우저에서 진행)</p>
+    <ol>
+      <li><a href="https://calendar.google.com" target="_blank" style="color:var(--pink-deep);font-weight:800">구글 캘린더</a> 접속 → 오른쪽 위 <b>톱니바퀴 ⚙ → 설정</b></li>
+      <li>왼쪽 아래 <b>"내 캘린더의 설정"</b> 에서 원하는 캘린더 이름 클릭</li>
+      <li><b>"캘린더 통합"</b> 항목에서 <b>비공개 주소(iCal 형식)</b> 의 <code>...basic.ics</code> 주소 복사</li>
+      <li>위젯의 <b>모렝이를 클릭 → ⚙ 설정</b> → 주소 붙여넣고 <b>저장</b></li>
+    </ol>
+    <div class="tip">
+      🔒 이 주소는 <b>비밀번호나 마찬가지</b>예요. 남에게 공유하지 마세요.<br>
+      위젯에서는 가려져서 보이고, 옆의 👁 을 눌러야 확인됩니다.
+    </div>
+  </section>
+
+  <section>
+    <h2>🐾 사용법</h2>
+    <p class="lede">클릭하고 드래그하면 대충 다 돼요.</p>
+    <table>
+      <tr><td>오늘 일정 보기</td><td>모렝이 클릭</td></tr>
+      <tr><td>위치 옮기기</td><td>모렝이 드래그</td></tr>
+      <tr><td>다른 날 보기</td><td>패널의 ‹ › 화살표</td></tr>
+      <tr><td>할 일 관리</td><td>패널 위 "할 일" 탭</td></tr>
+      <tr><td>캐릭터 바꾸기</td><td>⚙ 설정 → 캐릭터</td></tr>
+      <tr><td>닫기</td><td>Esc 또는 다른 곳 클릭</td></tr>
+      <tr><td>숨기기 / 종료 / 자동실행</td><td>메뉴바의 달력 아이콘</td></tr>
+    </table>
+    <div class="tip" style="margin-top:20px">
+      ⏰ 회의 <b>10분 전 · 5분 전 · 시작 시각</b>에 말풍선이 떠요.
+      알림 말풍선은 <b>직접 닫을 때까지 사라지지 않아서</b> 자리를 비워도 놓치지 않아요.
+      화상회의 링크가 있으면 말풍선에서 <b>▶ 회의 참여</b> 로 바로 들어갈 수 있고요.
+    </div>
+  </section>
+
+  <section>
+    <h2>🎨 캐릭터 8종</h2>
+    <p class="lede">고르면 위젯 색 테마도 같이 바뀌어요. (3D · 2D 각 4종)</p>
+    <div class="chars">
+      <img src="img/moreng.webp" alt="머랭">
+      <img src="img/gomi.png" alt="고미">
+      <img src="img/magnum.png" alt="마그넘">
+      <img src="img/colly.png" alt="콜리">
+    </div>
+  </section>
+
+  <section>
+    <h2>❓ 문제가 생기면</h2>
+    <details>
+      <summary>일정이 안 보여요</summary>
+      <p>⚙ 설정에서 iCal 주소가 제대로 들어갔는지 확인해 주세요. 주소는 <code>.ics</code> 로 끝나야 해요.</p>
+    </details>
+    <details>
+      <summary>"비공개 주소" 항목이 안 보여요</summary>
+      <p>회사 계정은 관리자가 iCal 주소 기능을 막아둔 경우가 있어요. 개인 캘린더로 먼저 테스트해 보시거나 IT 담당자에게 문의해 주세요.</p>
+    </details>
+    <details>
+      <summary>빨간 줄로 "불러오기 실패"가 떠요</summary>
+      <p>그 줄을 클릭하면 다시 시도돼요. 계속 실패하면 주소를 다시 복사해서 넣어보세요.</p>
+    </details>
+    <details>
+      <summary>알림이 안 와요</summary>
+      <p>시스템 설정 → 알림 에서 <b>모렝이 일정위젯</b>의 알림이 켜져 있는지 확인해 주세요.</p>
+    </details>
+    <details>
+      <summary>앱이 실행되자마자 꺼져요 (맥)</summary>
+      <p>터미널에 <code>xattr -cr /Applications/Moreng.app</code> 를 붙여넣고 다시 실행해 보세요.</p>
+    </details>
+  </section>
+
+  <footer>
+    만든 사람에게 문의하기 · 사내 전용 배포<br>
+    캐릭터는 원티드랩 자산입니다.
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  // ▼▼▼ 여기만 실제 다운로드 주소로 바꾸세요 ▼▼▼
+  var MAC_URL = "https://github.com/cathy0305/moreng-widget/releases/download/v0.1.0/Moreng-0.1.0-arm64.dmg";   // 예: "https://.../Moreng-0.1.0-arm64.dmg"
+  var WIN_URL = "#";   // 예: "https://.../Moreng Setup 0.1.0.exe"
+  // ▲▲▲------------------------------------▲▲▲
+
+  var isWin = /Win/i.test(navigator.platform) || /Windows/i.test(navigator.userAgent);
+  var btn = document.getElementById('mainBtn');
+  var alt = document.getElementById('altLine');
+
+  function showMac(){
+    btn.textContent = '맥용 다운로드';
+    btn.href = MAC_URL;
+    alt.innerHTML = '윈도우를 쓰신다면 <a href="#" id="toWin">윈도우용 받기</a>';
+    document.getElementById('macSteps').style.display = '';
+    document.getElementById('winSteps').style.display = 'none';
+    var t=document.getElementById('toWin');
+    if(t) t.addEventListener('click', function(e){ e.preventDefault(); showWin(); });
+  }
+  function showWin(){
+    btn.textContent = '윈도우용 다운로드';
+    btn.href = WIN_URL;
+    alt.innerHTML = '맥을 쓰신다면 <a href="#" id="toMac">맥용 받기</a>';
+    document.getElementById('macSteps').style.display = 'none';
+    document.getElementById('winSteps').style.display = '';
+    var t=document.getElementById('toMac');
+    if(t) t.addEventListener('click', function(e){ e.preventDefault(); showMac(); });
+  }
+  isWin ? showWin() : showMac();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>일정 위젯</title>
+<style>
+  :root{
+    --ink:#2b2e48; --sub:#9095ae; --pink:#f19ad6; --pink-deep:#e072bd;
+    --pink-soft:#fdeef8; --pink-line:#ffe3f4; --line:#f1eff6; --now:#fff5fb;
+    --card:#ffffff;
+  }
+  *{box-sizing:border-box; -webkit-user-select:none; user-select:none}
+  html,body{margin:0;height:100%;background:transparent;overflow:hidden;
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Malgun Gothic",sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  #app{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-end;padding:10px}
+
+  /* 말풍선 */
+  #bubble{max-width:250px;margin-bottom:10px;align-self:flex-end;position:relative;
+    background:var(--card);color:var(--ink);font-size:13.5px;line-height:1.5;font-weight:600;
+    padding:13px 16px;border-radius:18px;border:1.5px solid var(--pink-line);
+    box-shadow:0 12px 34px rgba(43,46,72,.16), 0 3px 8px rgba(43,46,72,.06);
+    opacity:0;transform:translateY(8px) scale(.96);transform-origin:bottom right;
+    transition:opacity .28s cubic-bezier(.2,.9,.3,1.2), transform .28s cubic-bezier(.2,.9,.3,1.2);
+    pointer-events:none;word-break:keep-all}
+  #bubble.show{opacity:1;transform:translateY(0) scale(1)}
+  #bubble:before{content:"";position:absolute;bottom:-9px;right:36px;width:16px;height:16px;
+    background:var(--card);border-right:1.5px solid var(--pink-line);border-bottom:1.5px solid var(--pink-line);
+    transform:rotate(45deg);border-bottom-right-radius:3px}
+
+  /* 패널 */
+  #panel{width:100%;background:var(--card);border-radius:22px;overflow:hidden;display:none;
+    margin-bottom:10px;flex:1;border:1px solid var(--line)}
+  #panel.show{display:flex;flex-direction:column;animation:pop .26s cubic-bezier(.2,.9,.3,1.15)}
+  @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+
+  .p-head{display:flex;align-items:center;justify-content:space-between;padding:15px 16px 13px;
+    background:linear-gradient(135deg,#ffffff, var(--pink-soft));border-bottom:1px solid var(--line)}
+  .p-head .tools{display:flex;gap:7px}
+  .tabs{display:flex;gap:4px;background:#f2f1f8;padding:3px;border-radius:12px}
+  .tab{border:0;background:transparent;font-family:inherit;font-size:13px;font-weight:800;color:var(--sub);
+    padding:7px 14px;border-radius:10px;cursor:pointer;transition:.15s}
+  .tab.on{background:#fff;color:var(--ink);box-shadow:0 2px 6px rgba(43,46,72,.12)}
+  .ptitle{display:none;font-size:15px;font-weight:800;color:var(--ink);letter-spacing:-.3px}
+  /* 설정 모드: 탭·새로고침·설정 버튼 숨기고 제목 + 닫기만 */
+  .p-head.settings .tabs{display:none}
+  .p-head.settings .ptitle{display:block}
+  .p-head.settings #refreshBtn, .p-head.settings #gearBtn{display:none}
+
+  /* 다음 일정 요약 바 (일정 화면 하단) */
+  #nextbar{display:none;align-items:center;gap:7px;padding:9px 12px;border-top:1px solid var(--line);
+    background:linear-gradient(135deg,#fff,var(--pink-soft));font-size:12px;font-weight:700;color:var(--sub);
+    white-space:nowrap;overflow:hidden;justify-content:space-between}
+  #nextbar.show{display:flex}
+  #nextbar .t{color:var(--pink-deep);font-weight:800;flex-shrink:0}
+  #nextbar .s{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+  #nextbar.live .t{color:#e5484d}
+  #nextbar .dot{width:7px;height:7px;border-radius:50%;background:#e5484d;flex-shrink:0;animation:blink 1.4s ease-in-out infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+  .gotoday{flex-shrink:0;border:0;border-radius:999px;padding:5px 12px;font-family:inherit;font-size:11px;
+    font-weight:800;cursor:pointer;background:var(--pink);color:#fff;box-shadow:0 3px 8px rgba(43,46,72,.18);transition:.15s}
+  .gotoday:hover{background:var(--pink-deep)}
+  .gotoday:active{transform:scale(.95)}
+
+  /* 날짜 이동 */
+  #dateNav{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;
+    border-bottom:1px solid var(--line);background:#fdfdff}
+  .navbtn{width:30px;height:30px;border:0;border-radius:9px;background:#f2f1f8;color:#7b8199;
+    font-size:18px;line-height:1;cursor:pointer;transition:.15s}
+  .navbtn:hover{background:var(--pink-soft);color:var(--pink-deep)}
+  .dwrap{display:flex;align-items:center;gap:7px}
+  #dateLabel{font-size:13px;font-weight:800;color:var(--ink)}
+  .daytag{font-size:10.5px;font-weight:800;padding:4px 9px;border-radius:999px;display:none;
+    background:var(--pink-soft);color:var(--pink-deep);letter-spacing:-.2px}
+  .daytag.show{display:block}
+  .daytag.today{background:var(--pink);color:#fff;box-shadow:0 2px 7px rgba(43,46,72,.18)}
+
+  .iconbtn{width:36px;height:36px;border:0;border-radius:11px;background:#f2f1f8;color:#7b8199;
+    cursor:pointer;font-size:19px;line-height:1;transition:.15s;display:flex;align-items:center;justify-content:center}
+  .iconbtn:hover{background:var(--pink-soft);color:var(--pink-deep)}
+  .iconbtn:active{transform:scale(.94)}
+
+  .p-body{padding:8px;overflow-y:auto;flex:1}
+  .p-body::-webkit-scrollbar{width:7px}
+  .p-body::-webkit-scrollbar-thumb{background:#eceaf2;border-radius:10px}
+  .evt{display:flex;gap:11px;padding:11px 10px;border-radius:14px;align-items:flex-start;transition:background .15s}
+  .evt + .evt{margin-top:2px}
+  .evt:hover{background:#faf7fb}
+  .evt .time{flex-shrink:0;font-size:11px;font-weight:800;color:var(--pink-deep);background:var(--pink-soft);
+    padding:4px 9px;border-radius:9px;white-space:nowrap;font-variant-numeric:tabular-nums;line-height:1.3;text-align:center}
+  .evt.now{background:var(--now)}
+  .evt.now .time{background:var(--pink);color:#fff}
+  .evt .info{padding-top:1px}
+  .evt .info .s{font-size:13.5px;font-weight:700;color:var(--ink);line-height:1.4;letter-spacing:-.1px}
+  .evt .info .loc{font-size:11.5px;color:var(--sub);margin-top:3px;font-weight:600}
+  .allday{font-size:10.5px}
+  .empty{padding:34px 16px;text-align:center;color:var(--sub);font-size:13px;line-height:1.7;font-weight:600}
+  .empty .big{font-size:30px;display:block;margin-bottom:8px}
+
+  /* 할 일 · 마감 */
+  .sec{font-size:11px;font-weight:800;color:var(--sub);padding:12px 10px 4px;letter-spacing:.3px}
+  .task{display:flex;gap:9px;padding:9px 10px;border-radius:14px;align-items:flex-start;transition:background .15s}
+  .task:hover{background:#faf7fb}
+  .tcheck{color:var(--pink);font-size:15px;line-height:1.35;flex-shrink:0}
+  .task.over .tcheck{color:#e5484d}
+  .tinfo .s{font-size:13.5px;font-weight:700;color:var(--ink);line-height:1.4;letter-spacing:-.1px}
+  .tinfo .due{font-size:11.5px;color:var(--sub);margin-top:2px;font-weight:700}
+  .task.over .due{color:#e5484d}
+
+  /* 설정 */
+  #settings{display:none;flex-direction:column;gap:10px;padding:16px}
+  #settings.show{display:flex}
+  #settings label{font-size:12.5px;font-weight:800;color:var(--ink)}
+  #settings p{font-size:11.5px;color:var(--sub);margin:0;line-height:1.55;font-weight:500}
+  #settings input{width:100%;font-size:12px;padding:11px;border:1.5px solid var(--line);border-radius:11px;
+    -webkit-user-select:text;user-select:text;color:var(--ink);outline:none;transition:.15s}
+  #settings input:focus{border-color:var(--pink);background:var(--pink-soft)}
+  #settings .save{background:linear-gradient(135deg,var(--pink),var(--pink-deep));color:#fff;border:0;
+    border-radius:11px;padding:11px;font-weight:800;cursor:pointer;font-size:13px;box-shadow:0 6px 16px rgba(43,46,72,.20)}
+  #settings .save:active{transform:scale(.98)}
+  .chk{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:800;color:var(--ink);cursor:pointer}
+  .chk input{width:17px;height:17px;accent-color:var(--pink);cursor:pointer;margin:0}
+
+  /* 캐릭터 */
+  #dock{display:flex;flex-direction:column;align-items:center;align-self:flex-end}
+  #stage{position:relative;width:150px;height:154px;perspective:700px;
+    display:flex;align-items:flex-end;justify-content:center}
+  #shadow{position:absolute;bottom:3px;left:50%;width:74px;height:13px;border-radius:50%;
+    background:rgba(43,46,72,.26);filter:blur(5px);transform:translateX(-50%);
+    animation:shadowPulse 3.2s ease-in-out infinite;pointer-events:none}
+  #mascotWrap{position:relative;animation:bob 3.2s ease-in-out infinite;transform-style:preserve-3d}
+  #mascotWrap.dragging{animation:none}
+  #mascotWrap.m-chill{animation-duration:5s}
+  #mascot{display:block;width:120px;height:120px;cursor:grab;-webkit-user-drag:none;
+    filter:drop-shadow(0 6px 10px rgba(43,46,72,.16))}
+  #mascot.dragging{cursor:grabbing}
+
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+  @keyframes shadowPulse{0%,100%{transform:translateX(-50%) scale(1);opacity:.28}
+                         50%{transform:translateX(-50%) scale(.84);opacity:.16}}
+  /* 랜덤 아이들 동작 */
+  .act-hop{animation:actHop .64s ease}
+  .act-spin{animation:actSpin .95s ease-in-out}
+  .act-tilt{animation:actTilt .85s ease}
+  .act-stretch{animation:actStretch .72s ease}
+  .act-wiggle{animation:actWiggle .55s ease}
+  @keyframes actHop{0%{transform:translateY(0) scale(1,1)}16%{transform:translateY(0) scale(1.13,.85)}
+    46%{transform:translateY(-28px) scale(.93,1.1)}72%{transform:translateY(0) scale(1.11,.89)}
+    100%{transform:translateY(0) scale(1,1)}}
+  @keyframes actSpin{0%{transform:rotateY(0)}100%{transform:rotateY(360deg)}}
+  @keyframes actTilt{0%,100%{transform:rotate(0)}25%{transform:rotate(-11deg)}60%{transform:rotate(9deg)}}
+  @keyframes actStretch{0%,100%{transform:scale(1,1)}30%{transform:scale(1.12,.87)}62%{transform:scale(.92,1.11)}}
+  @keyframes actWiggle{0%,100%{transform:rotate(0)}20%{transform:rotate(-10deg)}40%{transform:rotate(8deg)}60%{transform:rotate(-6deg)}80%{transform:rotate(4deg)}}
+
+  /* 투두리스트 */
+  #todoInput{width:100%;font-size:13px;font-weight:600;padding:11px 12px;border:1.5px solid var(--line);
+    border-radius:12px;-webkit-user-select:text;user-select:text;color:var(--ink);outline:none;
+    transition:.15s;margin-bottom:6px;font-family:inherit}
+  #todoInput:focus{border-color:var(--pink);background:var(--pink-soft)}
+  .todo{display:flex;align-items:flex-start;gap:9px;padding:10px;border-radius:13px;transition:background .15s}
+  .todo:hover{background:#faf7fb}
+  .todo .tbox{width:19px;height:19px;flex-shrink:0;border-radius:7px;border:2px solid var(--pink-line);
+    display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;cursor:pointer;
+    font-weight:900;line-height:1;margin-top:1px}
+  .todo.done .tbox{background:var(--pink);border-color:var(--pink)}
+  .todo .ttext{flex:1;font-size:13.5px;font-weight:700;color:var(--ink);line-height:1.45;cursor:pointer;word-break:break-word}
+  .todo.done .ttext{color:#b6bacb;text-decoration:line-through}
+  .tdel{border:0;background:transparent;color:#c9cddc;font-size:13px;cursor:pointer;padding:2px 4px;
+    border-radius:6px;opacity:0;transition:.15s}
+  .todo:hover .tdel{opacity:1}
+  .tdel:hover{background:#ffe9ea;color:#e5484d}
+
+  /* 말풍선 버튼 (확인 / 스누즈 / 참여) */
+  .brow{display:flex;gap:6px;margin-top:10px}
+  .bbtn{flex:1;border:0;border-radius:10px;padding:8px 6px;font-family:inherit;font-size:11.5px;
+    font-weight:800;cursor:pointer;transition:.15s;white-space:nowrap}
+  .bbtn.join{background:var(--pink-soft);color:var(--pink-deep)}
+  .bbtn.join:hover{background:var(--pink-line)}
+  .bclose{position:absolute;top:7px;right:9px;width:20px;height:20px;border:0;border-radius:6px;
+    background:transparent;color:#cbcfdd;font-size:11px;line-height:1;cursor:pointer;transition:.15s}
+  .bclose:hover{background:#f2f1f8;color:var(--sub)}
+  #bubble.closable{padding-right:28px;cursor:pointer}
+  .bbtn:active{transform:scale(.96)}
+
+  /* 갱신 상태 바 */
+  #syncbar{display:none;padding:7px 12px;border-top:1px solid var(--line);background:#fcfcfe;
+    font-size:10.5px;font-weight:700;color:#a9aec2;text-align:center;cursor:pointer;transition:.15s}
+  #syncbar:hover{background:#f7f7fb;color:var(--sub)}
+  #syncbar.err{background:#fff2f2;color:#e5484d}
+
+  /* 완료 항목 지우기 */
+  .cleardone{display:none;width:100%;margin-top:8px;border:0;border-radius:11px;padding:9px;
+    font-family:inherit;font-size:11.5px;font-weight:800;cursor:pointer;background:#f5f4f9;color:#9a9fb6;transition:.15s}
+  .cleardone:hover{background:#ffe9ea;color:#e5484d}
+  .cleardone.show{display:block}
+
+  /* 비밀 주소 입력 */
+  .pwrap{position:relative;display:flex;align-items:center}
+  .pwrap input{padding-right:40px !important}
+  .eye{position:absolute;right:6px;width:28px;height:28px;border:0;border-radius:8px;background:transparent;
+    cursor:pointer;font-size:14px;opacity:.5;transition:.15s}
+  .eye:hover{opacity:1;background:#f2f1f8}
+
+  /* 화상회의 참여 버튼 */
+  .joinbtn{margin-top:7px;display:inline-flex;align-items:center;gap:4px;font-family:inherit;
+    font-size:11.5px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--pink),var(--pink-deep));
+    border:0;border-radius:9px;padding:6px 11px;cursor:pointer;box-shadow:0 4px 11px rgba(43,46,72,.20)}
+  .joinbtn:active{transform:scale(.96)}
+
+
+  /* 캐릭터 선택 */
+  .chars{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:2px}
+  .charbtn{border:2px solid var(--line);background:#fff;border-radius:13px;padding:7px 4px 5px;
+    cursor:pointer;transition:.15s;display:flex;flex-direction:column;align-items:center;gap:3px}
+  .charbtn img{width:38px;height:38px;object-fit:contain}
+  .charbtn span{font-size:10px;font-weight:800;color:var(--sub)}
+  .charbtn:hover{border-color:var(--pink-line);background:#fffafd}
+  .charbtn.on{border-color:var(--pink);background:var(--pink-soft)}
+  .charbtn.on span{color:var(--pink-deep)}
+  .charbtn.secret{display:none}
+  .chars.unlocked .charbtn.secret{display:flex;animation:pop .3s cubic-bezier(.2,.9,.3,1.2)}
+  #charLabel{cursor:default;-webkit-user-select:none;user-select:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="bubble"></div>
+
+  <div id="panel">
+    <div class="p-head">
+      <div class="tabs" id="tabs">
+        <button class="tab on" data-t="cal">일정</button>
+        <button class="tab" data-t="todo">할 일</button>
+      </div>
+      <div class="ptitle" id="ptitle">⚙ 설정</div>
+      <div class="tools">
+        <button class="iconbtn" id="refreshBtn" title="새로고침">⟳</button>
+        <button class="iconbtn" id="gearBtn" title="설정">⚙</button>
+        <button class="iconbtn" id="closeBtn" title="닫기">✕</button>
+      </div>
+    </div>
+    <div id="dateNav">
+      <button class="navbtn" id="prevDay" title="이전 날">‹</button>
+      <div class="dwrap"><span class="daytag" id="dayTag"></span><span id="dateLabel"></span></div>
+      <button class="navbtn" id="nextDay" title="다음 날">›</button>
+    </div>
+    <div class="p-body" id="list"></div>
+    <div class="p-body" id="todoView" style="display:none">
+      <input id="todoInput" type="text" placeholder="할 일 입력하고 Enter" />
+      <div id="todoList"></div>
+      <button class="cleardone" id="clearDone">완료한 항목 지우기</button>
+    </div>
+    <div id="nextbar"></div>
+    <div id="syncbar"><span id="syncText"></span></div>
+    <div id="settings">
+      <label>구글 캘린더 비공개 iCal 주소</label>
+      <p>구글 캘린더 → 설정 → 내 캘린더 → "비공개 주소(iCal)" 의 .ics 링크를 붙여넣으세요.</p>
+      <div class="pwrap">
+        <input id="urlInput" type="password" placeholder="https://calendar.google.com/calendar/ical/.../basic.ics" />
+        <button class="eye" id="eyeBtn" title="주소 보기">👁</button>
+      </div>
+      <label id="charLabel" style="margin-top:4px">캐릭터</label>
+      <div class="chars" id="chars">
+        <button class="charbtn" data-c="moreng"><img src="characters/moreng_happy.webp" alt="머랭"><span>머랭</span></button>
+        <button class="charbtn" data-c="gomi"><img src="characters/gomi.png" alt="고미"><span>고미</span></button>
+        <button class="charbtn" data-c="magnum"><img src="characters/magnum.png" alt="마그넘"><span>마그넘</span></button>
+        <button class="charbtn" data-c="colly"><img src="characters/colly.png" alt="콜리"><span>콜리</span></button>
+        <button class="charbtn" data-c="moreng2d"><img src="characters/moreng2d.png" alt="머랭2D"><span>머랭 2D</span></button>
+        <button class="charbtn" data-c="gomi2d"><img src="characters/gomi2d.png" alt="고미2D"><span>고미 2D</span></button>
+        <button class="charbtn" data-c="magnum2d"><img src="characters/magnum2d.png" alt="마그넘2D"><span>마그넘 2D</span></button>
+        <button class="charbtn" data-c="colly2d"><img src="characters/colly2d.png" alt="콜리2D"><span>콜리 2D</span></button>
+        <button class="charbtn secret" data-c="earth"><img src="characters/earth.png" alt="지구"><span>지구</span></button>
+        <button class="charbtn secret" data-c="wanted"><img src="characters/wanted.png" alt="현상수배"><span>현상수배</span></button>
+      </div>
+      <button class="save" id="saveBtn">저장하고 불러오기</button>
+    </div>
+  </div>
+
+  <div id="dock">
+    <div id="stage">
+      <div id="shadow"></div>
+      <div id="mascotWrap">
+        <img id="mascot" src="characters/moreng.webp" alt="모렝이" draggable="false" />
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var W = window.widget;
+  var bubble=document.getElementById('bubble');
+  var panel=document.getElementById('panel');
+  var settings=document.getElementById('settings');
+  var listEl=document.getElementById('list');
+  var mascot=document.getElementById('mascot');
+  var dateLabel=document.getElementById('dateLabel');
+
+  var expanded=false, events=[], todayEvents=[], tasks=[], todos=[], fired=new Set();
+  var bubbleTimer=null, bubbleVisible=false, drag=null, dayOffset=0, tabMode='cal';
+  var SIZES={base:{w:380,h:400}, expanded:{w:380,h:560}};
+  function applySize(){ var s = expanded?SIZES.expanded:SIZES.base; W.resize(s.w, s.h); }
+
+  // 투명한 빈 영역은 클릭이 뒤 앱으로 통과되게 (마우스가 실제 요소 위에 있을 때만 잡음)
+  var ignoring=null;
+  function setIgnore(v){ if(ignoring===v) return; ignoring=v; W.setIgnore(v); }
+  function hitTest(x,y){
+    var el=document.elementFromPoint(x,y);
+    if(!el || !el.closest) return false;
+    return !!el.closest('#panel, #bubble, #mascot');
+  }
+  document.addEventListener('mousemove', function(e){
+    if(drag){ setIgnore(false); return; }          // 드래그 중엔 계속 잡고 있어야 함
+    setIgnore(!hitTest(e.clientX, e.clientY));
+  });
+  document.addEventListener('mouseleave', function(){ if(!drag) setIgnore(true); });
+
+  function fmt(iso){var d=new Date(iso);var h=d.getHours(),m=d.getMinutes();var ap=h<12?'오전':'오후';var hh=h%12;if(hh===0)hh=12;return ap+' '+hh+':'+(m<10?'0':'')+m;}
+  function dateOnlyStr(off){
+    var d=new Date(); d.setDate(d.getDate()+off);
+    var wd=['일','월','화','수','목','금','토'][d.getDay()];
+    return (d.getMonth()+1)+'월 '+d.getDate()+'일 ('+wd+')';
+  }
+  function dayTagFor(off){
+    if(off===0) return '오늘';
+    if(off===1) return '내일';
+    if(off===-1) return '어제';
+    return '';
+  }
+  function dateStrFor(off){
+    var t=dayTagFor(off);
+    return (t? t+' · ':'')+dateOnlyStr(off);
+  }
+  // 받침 유무로 조사 자동 선택 (이/가, 은/는, 을/를)
+  function hasJong(word){
+    if(!word) return false;
+    var s=String(word).replace(/[\s'"’”)\]}»]+$/,'');
+    if(!s) return false;
+    var ch=s[s.length-1];
+    var code=ch.charCodeAt(0);
+    if(code>=0xAC00 && code<=0xD7A3) return ((code-0xAC00)%28)!==0; // 한글: 종성 있으면 받침
+    if(/[0-9]/.test(ch)) return '013678'.indexOf(ch)>=0;            // 영·일·삼·육·칠·팔
+    if(/[a-zA-Z]/.test(ch)) return 'lmnrz'.indexOf(ch.toLowerCase())>=0; // 엘·엠·엔·알·제트
+    return false;
+  }
+  function josa(word, pair){ var p=pair.split('/'); return hasJong(word)?p[0]:p[1]; }
+
+  function isUrl(s){ return s && /^https?:\/\//.test(s); }
+  function locPart(ev){ return (ev.location && !isUrl(ev.location)) ? (ev.location + '에서 ') : ''; }
+  function tag(ev){ return (ev.location && !isUrl(ev.location)) ? (ev.location + ' · ' + ev.summary) : ev.summary; }
+
+  function hideBubble(){
+    bubble.classList.remove('show'); bubble.style.pointerEvents='none';
+    if(bubbleTimer){ clearTimeout(bubbleTimer); bubbleTimer=null; }
+    bubbleVisible=false;
+  }
+  // btns: [{cls,label,act}]
+  function renderBubble(text, btns, closable){
+    var html=(closable?'<button class="bclose">✕</button>':'')+'<div>'+esc(text)+'</div>';
+    if(btns.length){
+      html+='<div class="brow">';
+      btns.forEach(function(b,i){ html+='<button class="bbtn '+b.cls+'" data-b="'+i+'">'+b.label+'</button>'; });
+      html+='</div>';
+    }
+    bubble.innerHTML=html;
+    bubble.classList.toggle('closable', !!closable);
+    bubble.style.pointerEvents = (btns.length||closable)?'auto':'none';
+    if(btns.length){
+      var els=bubble.querySelectorAll('[data-b]');
+      Array.prototype.forEach.call(els, function(el){
+        el.addEventListener('click', function(e){ e.stopPropagation(); btns[+el.getAttribute('data-b')].act(); });
+      });
+    }
+    bubble.classList.add('show');
+    bubbleVisible=true;
+  }
+  // 일반 안내 — 시간 지나면 자동으로 사라짐
+  function say(msg, ms, link){
+    var btns=[];
+    if(link) btns.push({cls:'join', label:'▶ 회의 참여', act:function(){ W.openLink(link); hideBubble(); }});
+    renderBubble(msg, btns);
+    if(bubbleTimer) clearTimeout(bubbleTimer);
+    bubbleTimer=setTimeout(hideBubble, ms||5000);
+  }
+  // 회의 알림 — 자동으로 안 사라짐 (놓치지 않게). 아무 데나 누르면 닫힘.
+  function sayAlert(msg, ev){
+    var btns=[];
+    if(ev && ev.link) btns.push({cls:'join', label:'▶ 회의 참여', act:function(){ W.openLink(ev.link); hideBubble(); }});
+    if(bubbleTimer){ clearTimeout(bubbleTimer); bubbleTimer=null; }
+    renderBubble(msg, btns, true);
+  }
+  // 캐릭터 동작
+  var ACT_CLASSES=['act-hop','act-spin','act-tilt','act-stretch','act-wiggle'];
+  function doAct(name){
+    ACT_CLASSES.forEach(function(c){ mascot.classList.remove(c); });
+    void mascot.offsetWidth;
+    mascot.classList.add('act-'+name);
+  }
+  bubble.addEventListener('click', function(){ if(bubble.classList.contains('closable')) hideBubble(); });
+  function wiggle(){ doAct('wiggle'); }
+  mascot.addEventListener('mouseenter', function(){ if(!drag) doAct('tilt'); });
+
+  function setExpanded(on){
+    expanded=on;
+    panel.classList.toggle('show',on);
+    if(!on){settings.classList.remove('show'); listEl.style.display='';}
+    applySize();
+  }
+
+  function handleTap(){ doAct('hop'); if(bubbleVisible) hideBubble(); setExpanded(!expanded); if(expanded) render(); }
+
+  // 캐릭터: 드래그로 이동, 살짝 눌렀다 떼면(=클릭) 패널 토글
+  var mascotWrap=document.getElementById('mascotWrap');
+  mascot.addEventListener('mousedown', function(e){ e.preventDefault(); drag={sx:e.screenX, sy:e.screenY, moved:0};
+    mascot.classList.add('dragging'); mascotWrap.classList.add('dragging'); });
+  window.addEventListener('mousemove', function(e){
+    if(!drag) return;
+    var dx=e.screenX-drag.sx, dy=e.screenY-drag.sy;
+    if(dx||dy){ W.moveBy(dx,dy); drag.moved+=Math.abs(dx)+Math.abs(dy); drag.sx=e.screenX; drag.sy=e.screenY; }
+  });
+  window.addEventListener('mouseup', function(){
+    if(!drag) return;
+    var moved=drag.moved; drag=null;
+    mascot.classList.remove('dragging'); mascotWrap.classList.remove('dragging');
+    if(moved<5) handleTap();
+  });
+
+  document.getElementById('closeBtn').addEventListener('click', function(){
+    // 설정 화면이면 이전(캘린더/할일)으로 돌아가고, 아니면 패널 닫기
+    if(settings.classList.contains('show')){ settings.classList.remove('show'); refreshViews(); }
+    else setExpanded(false);
+  });
+  // 캐릭터 선택
+  var CHARS={moreng:'characters/moreng.webp', gomi:'characters/gomi.png',
+             magnum:'characters/magnum.png', colly:'characters/colly.png',
+             moreng2d:'characters/moreng2d.png', gomi2d:'characters/gomi2d.png',
+             magnum2d:'characters/magnum2d.png', colly2d:'characters/colly2d.png',
+             earth:'characters/earth.png', wanted:'characters/wanted.png'};
+  // 캐릭터별 컬러 테마
+  var THEMES={
+    moreng:{a:'#f19ad6', d:'#e072bd', s:'#fdeef8', l:'#ffe3f4', n:'#fff5fb'},
+    gomi:  {a:'#f7a45c', d:'#e2833a', s:'#fff4e9', l:'#ffe4cc', n:'#fff8f1'},
+    magnum:{a:'#5aabf5', d:'#3a89d6', s:'#edf6ff', l:'#d8eaff', n:'#f4faff'},
+    colly: {a:'#6cc85a', d:'#4aa83a', s:'#f0fbee', l:'#d9f2d3', n:'#f5fcf3'},
+    earth: {a:'#6aa9f0', d:'#4585d6', s:'#eef5ff', l:'#d6e7fb', n:'#f5f9ff'},
+    wanted:{a:'#b98b5e', d:'#8d6540', s:'#faf3ea', l:'#eddcc6', n:'#fdf9f3'}
+  };
+  // 머랭(moreng)만 상황별 표정 세트를 가짐. 기본은 신난(반짝) 얼굴.
+  var FACES={ happy:'characters/moreng_happy.webp', glum:'characters/moreng.webp' };
+  function hasFaces(){ return currentChar==='moreng'; }
+  // 지금 어떤 표정이어야 하나: 회의 진행 중 / 10분 이내 임박 → 시무룩, 그 외 → 신남
+  function faceMood(){
+    var now=Date.now();
+    for(var i=0;i<todayEvents.length;i++){
+      var e=todayEvents[i]; if(e.allDay) continue;
+      if(new Date(e.start).getTime()<=now && new Date(e.end).getTime()>now) return 'glum';
+    }
+    var up=nextUpcoming();
+    if(up && (new Date(up.start).getTime()-now) <= 10*60000) return 'glum';
+    return 'happy';
+  }
+  function updateFace(){
+    if(!hasFaces()) return;
+    mascot.src = FACES[faceMood()];
+  }
+
+  var currentChar='moreng';
+  function applyChar(name){
+    if(!CHARS[name]) name='moreng';
+    currentChar=name;
+    if(name==='moreng') updateFace(); else mascot.src=CHARS[name];
+    var t=THEMES[name.replace('2d','')]||THEMES.moreng;
+    var r=document.documentElement.style;
+    r.setProperty('--pink',t.a); r.setProperty('--pink-deep',t.d);
+    r.setProperty('--pink-soft',t.s); r.setProperty('--pink-line',t.l);
+    r.setProperty('--now',t.n);
+    var btns=document.querySelectorAll('.charbtn');
+    for(var i=0;i<btns.length;i++){ btns[i].classList.toggle('on', btns[i].getAttribute('data-c')===name); }
+  }
+  // 팀 전용 히든 캐릭터 — '캐릭터' 라벨을 5번 누르면 나타남
+  var secretTaps=0, secretTimer=null;
+  function unlockSecret(save){
+    document.getElementById('chars').classList.add('unlocked');
+    if(save) W.saveConfig({secret:true});
+  }
+  document.getElementById('charLabel').addEventListener('click', function(){
+    if(document.getElementById('chars').classList.contains('unlocked')) return;
+    secretTaps++;
+    if(secretTimer) clearTimeout(secretTimer);
+    secretTimer=setTimeout(function(){ secretTaps=0; }, 1500);
+    if(secretTaps>=5){
+      secretTaps=0;
+      unlockSecret(true);
+      say('숨겨진 친구들을 찾았어요! 우리 팀만 아는 비밀이에요', 7000);
+      wiggle();
+    }
+  });
+
+  document.getElementById('chars').addEventListener('click', function(e){
+    var b=e.target.closest && e.target.closest('.charbtn'); if(!b) return;
+    applyChar(b.getAttribute('data-c'));
+  });
+
+  var dateNav=document.getElementById('dateNav');
+  var todoView=document.getElementById('todoView');
+
+  // 어떤 화면을 보여줄지 (설정 열림 / 탭 상태 반영)
+  function refreshViews(){
+    var s=settings.classList.contains('show');
+    var cal=(tabMode==='cal');
+    document.querySelector('.p-head').classList.toggle('settings', s);
+    dateNav.style.display = (!s && cal) ? 'flex' : 'none';
+    listEl.style.display  = (!s && cal) ? '' : 'none';
+    todoView.style.display= (!s && !cal) ? '' : 'none';
+    document.getElementById('syncbar').style.display = (!s && cal && syncError) ? 'block' : 'none';
+    updateNextBar(s, cal);
+    updateFace();
+  }
+
+  // 하단 바 — 오늘: 다음 일정 요약 / 다른 날: 오늘로 이동 버튼
+  function updateNextBar(settingsOpen, cal){
+    var bar=document.getElementById('nextbar');
+    if(settingsOpen || !cal){ bar.className=''; return; }
+
+    // 다른 날을 보고 있으면 오른쪽에 '오늘로' 버튼
+    if(dayOffset!==0){
+      var rel = dayOffset>0 ? (dayOffset+'일 후 보는 중') : (Math.abs(dayOffset)+'일 전 보는 중');
+      bar.className='show';
+      bar.innerHTML='<span class="s">'+rel+'</span><button class="gotoday" id="toTodayBtn">↩ 오늘로</button>';
+      var btn=document.getElementById('toTodayBtn');
+      if(btn) btn.onclick=function(){ goDay(0); };
+      return;
+    }
+
+    // 오늘: 다음 일정 요약
+    var now=Date.now();
+    var ongoing=null;
+    for(var i=0;i<todayEvents.length;i++){
+      var e=todayEvents[i]; if(e.allDay) continue;
+      if(new Date(e.start).getTime()<=now && new Date(e.end).getTime()>now){ ongoing=e; break; }
+    }
+    if(ongoing){
+      bar.className='show live';
+      bar.innerHTML='<span class="dot"></span><span class="t">진행 중</span><span class="s">'+esc(ongoing.summary)+'</span>';
+      return;
+    }
+    var up=nextUpcoming();
+    if(up){
+      var mins=Math.round((new Date(up.start).getTime()-now)/60000);
+      var when = mins<=60 ? (mins<=1?'곧':(mins+'분 후')) : fmt(up.start);
+      bar.className='show';
+      bar.innerHTML='<span class="t">다음 '+when+'</span><span class="s">· '+esc(up.summary)+'</span>';
+      return;
+    }
+    bar.className='show';
+    bar.innerHTML='<span class="s">오늘 남은 일정이 없어요 ☕</span>';
+  }
+  function refreshNextBar(){ updateNextBar(settings.classList.contains('show'), tabMode==='cal'); updateFace(); }
+  function setTab(t){
+    tabMode=t;
+    var tabs=document.querySelectorAll('.tab');
+    for(var i=0;i<tabs.length;i++){ tabs[i].classList.toggle('on', tabs[i].getAttribute('data-t')===t); }
+    refreshViews();
+    if(t==='todo') renderTodos();
+  }
+  document.getElementById('tabs').addEventListener('click', function(e){
+    var b=e.target.closest && e.target.closest('.tab'); if(!b) return;
+    setTab(b.getAttribute('data-t'));
+  });
+
+  // 날짜 이동 — 라벨은 클릭 즉시 갱신 (네트워크 응답을 기다리지 않음)
+  function syncDateLabel(){
+    dateLabel.textContent=dateOnlyStr(dayOffset);
+    // 날짜 태그(오늘/내일/어제)는 제거 — 날짜 라벨 + 하단 바로 충분
+    document.getElementById('dayTag').classList.remove('show','today');
+    refreshViews();
+  }
+  function goDay(off){
+    dayOffset=off;
+    syncDateLabel();
+    listEl.innerHTML='<div class="empty">불러오는 중…</div>';
+    load(false);
+  }
+  document.getElementById('prevDay').addEventListener('click', function(){ goDay(dayOffset-1); });
+  document.getElementById('nextDay').addEventListener('click', function(){ goDay(dayOffset+1); });
+
+  document.getElementById('gearBtn').addEventListener('click', function(){
+    settings.classList.toggle('show');
+    refreshViews();
+  });
+  document.getElementById('saveBtn').addEventListener('click', async function(){
+    var url=document.getElementById('urlInput').value.trim();
+    await W.saveConfig({icalUrl:url, character:currentChar});
+    settings.classList.remove('show'); refreshViews();
+    load(true, true);
+  });
+
+  // 이벤트 목록: 참여 버튼 / 일정 클릭 → 구글 캘린더 해당 날짜 열기
+  listEl.addEventListener('click', function(e){
+    var b=e.target.closest && e.target.closest('.joinbtn');
+    if(b){ W.openLink(decodeURIComponent(b.getAttribute('data-link'))); return; }
+    var row=e.target.closest && e.target.closest('.evt');
+    if(row){
+      var d=new Date(); d.setDate(d.getDate()+dayOffset);
+      W.openLink('https://calendar.google.com/calendar/u/0/r/day/'+d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate());
+    }
+  });
+
+  // Esc / 창 포커스 잃으면 패널 닫기
+  var hadFocus=false;
+  window.addEventListener('focus', function(){ hadFocus=true; });
+  window.addEventListener('blur', function(){
+    if(hadFocus && expanded) setExpanded(false);
+    hadFocus=false;
+  });
+  window.addEventListener('keydown', function(e){
+    if(e.key!=='Escape') return;
+    if(bubbleVisible) hideBubble();
+    else if(settings.classList.contains('show')){ settings.classList.remove('show'); refreshViews(); }
+    else if(expanded) setExpanded(false);
+  });
+
+  // iCal 주소 가리기 토글
+  document.getElementById('eyeBtn').addEventListener('click', function(){
+    var inp=document.getElementById('urlInput');
+    inp.type = inp.type==='password' ? 'text' : 'password';
+    this.style.opacity = inp.type==='text' ? 1 : '';
+  });
+
+  // 완료한 할 일 지우기
+  document.getElementById('clearDone').addEventListener('click', function(){
+    todos=todos.filter(function(t){ return !t.done; });
+    W.saveTodos(todos); renderTodos();
+  });
+
+  // 갱신 상태
+  var lastSync=0, syncError='';
+  function updateSync(){
+    var bar=document.getElementById('syncbar');
+    var el=document.getElementById('syncText');
+    if(syncError){ bar.classList.add('err'); el.textContent='⚠ 불러오기 실패 · 눌러서 다시 시도'; }
+    else bar.classList.remove('err');
+    refreshViews();
+  }
+  document.getElementById('syncbar').addEventListener('click', function(){ load(true, true); });
+
+  function render(){
+    syncDateLabel();
+    var now=Date.now();
+    var html='';
+    events.forEach(function(ev){
+      var isNow = new Date(ev.start).getTime()<=now && new Date(ev.end).getTime()>now;
+      html+='<div class="evt'+(isNow?' now':'')+'">'
+        + '<div class="time">'+(ev.allDay?'<span class="allday">종일</span>':fmt(ev.start))+'</div>'
+        + '<div class="info"><div class="s">'+esc(ev.summary)+'</div>'
+        + ((ev.location && !isUrl(ev.location))?'<div class="loc">📍 '+esc(ev.location)+'</div>':'')
+        + (ev.link?'<button class="joinbtn" data-link="'+encodeURIComponent(ev.link)+'">▶ 회의 참여</button>':'')
+        + '</div></div>';
+    });
+    if(tasks.length){
+      html+='<div class="sec">✅ 할 일 · 마감</div>';
+      tasks.forEach(function(t){
+        html+='<div class="task'+(t.overdue?' over':'')+'">'
+          + '<span class="tcheck">○</span>'
+          + '<div class="tinfo"><div class="s">'+esc(t.summary)+'</div>'
+          + '<div class="due">'+(t.overdue?'⚠ 지난 마감':(t.allDay?'오늘 마감':fmt(t.due)+' 마감'))+'</div>'
+          + '</div></div>';
+      });
+    }
+    if(!events.length && !tasks.length){
+      if(notConfigured){
+        html='<div class="empty"><span class="big">🔗</span>구글 캘린더가 아직 연결되지 않았어요.<br>위의 ⚙ 를 눌러 연결해 주세요.</div>';
+      } else {
+        html = dayOffset===0
+          ? '<div class="empty"><span class="big">☕</span>오늘 일정이 없어요.<br>여유로운 하루 되세요!</div>'
+          : '<div class="empty"><span class="big">🗓️</span>이 날은 일정이 없어요.</div>';
+      }
+    }
+    listEl.innerHTML=html;
+    updateSync();
+  }
+
+  // 투두리스트
+  function renderTodos(){
+    todos.sort(function(a,b){ return (a.done?1:0)-(b.done?1:0); }); // 완료는 아래로
+    var doneCnt=todos.filter(function(t){return t.done;}).length;
+    var cd=document.getElementById('clearDone');
+    cd.classList.toggle('show', doneCnt>0);
+    cd.textContent='완료한 '+doneCnt+'개 지우기';
+    var el=document.getElementById('todoList');
+    if(!todos.length){
+      el.innerHTML='<div class="empty"><span class="big">📝</span>할 일이 없어요.<br>위에 입력하고 Enter!</div>';
+      return;
+    }
+    var html='';
+    todos.forEach(function(t,i){
+      html+='<div class="todo'+(t.done?' done':'')+'" data-i="'+i+'">'
+        + '<span class="tbox">'+(t.done?'✓':'')+'</span>'
+        + '<span class="ttext">'+esc(t.text)+'</span>'
+        + '<button class="tdel" title="삭제">✕</button>'
+        + '</div>';
+    });
+    el.innerHTML=html;
+  }
+  document.getElementById('todoList').addEventListener('click', function(e){
+    var row=e.target.closest && e.target.closest('.todo'); if(!row) return;
+    var i=parseInt(row.getAttribute('data-i'),10);
+    if(e.target.closest('.tdel')){ todos.splice(i,1); }
+    else { todos[i].done=!todos[i].done; }
+    W.saveTodos(todos); renderTodos();
+  });
+  document.getElementById('todoInput').addEventListener('keydown', function(e){
+    // 한글 IME: 조합 확정 Enter가 한 번 더 들어와서 중복 추가되는 것 방지
+    if(e.key!=='Enter' || e.isComposing || e.keyCode===229) return;
+    var v=this.value.trim(); if(!v) return;
+    todos.unshift({text:v, done:false});
+    this.value='';
+    W.saveTodos(todos); renderTodos();
+  });
+  function esc(s){return (s||'').replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+
+  var loadSeq=0, notConfigured=false;
+  async function load(showMsg, force){
+    var seq=++loadSeq;
+    var reqOffset=dayOffset;
+    var res=await W.fetchEvents(reqOffset, force);
+    if(seq!==loadSeq || reqOffset!==dayOffset) return; // 늦게 온 이전 요청은 버림
+    if(!res.ok){
+      events=[]; tasks=[];
+      if(res.error==='no-url'){ notConfigured=true; }
+      else { syncError=res.error||'실패'; if(showMsg) say('캘린더를 못 불러왔어요 😢 주소를 확인해 주세요.'); }
+      render(); return;
+    }
+    events=res.events; tasks=res.tasks||[];
+    lastSync=Date.now(); syncError=''; notConfigured=false;
+    if(dayOffset===0) todayEvents=events;
+    render(); updateMood();
+    if(showMsg){
+      if(dayOffset!==0){ say(dateStrFor(dayOffset)+' 일정 '+events.length+'개예요.'); return; }
+      var up=nextUpcoming();
+      if(up) say('오늘 일정 '+events.length+'개! 다음은 '+fmt(up.start)+' ‘'+up.summary+'’'+(hasJong(up.summary)?'이에요.':'예요.'));
+      else say('오늘 일정 '+events.length+'개 불러왔어요!');
+    }
+  }
+  // 알림·뱃지는 항상 '오늘' 기준이라 따로 유지
+  async function refreshToday(){
+    if(dayOffset===0) return;
+    var res=await W.fetchEvents(0,false);
+    if(res.ok) todayEvents=res.events;
+  }
+
+  function nextUpcoming(){
+    var now=Date.now();
+    for(var i=0;i<todayEvents.length;i++){ if(new Date(todayEvents[i].start).getTime()>now && !todayEvents[i].allDay) return todayEvents[i]; }
+    return null;
+  }
+
+  // 알림 체크 (30초마다) — 회의 10분 전, 5분 전, 시작 시각
+  var PRE_MINS=[10,5];
+  function keyOf(ev,kind){return kind+'|'+ev.summary+'|'+ev.start;}
+  function checkAlerts(){
+    var now=Date.now();
+    todayEvents.forEach(function(ev){
+      if(ev.allDay) return;
+      var startMs=new Date(ev.start).getTime();
+      var stKey=keyOf(ev,'start');
+      // 10분 전, 5분 전 두 번 알림
+      PRE_MINS.forEach(function(pm){
+        var key=keyOf(ev,'pre'+pm);
+        if(fired.has(key)) return;
+        var at=startMs-pm*60000;
+        if(now < at) return;
+        if(now >= at+90000){ fired.add(key); return; } // 이미 지난 시점이면 조용히 소진
+        fired.add(key);
+        sayAlert('⏰ '+pm+'분 뒤에 '+locPart(ev)+'‘'+ev.summary+'’'+josa(ev.summary,'이/가')+' 시작돼요!', ev);
+        W.notify(pm+'분 뒤 회의', tag(ev)); wiggle();
+      });
+      if(!fired.has(stKey) && now>=startMs && now<startMs+60000){
+        fired.add(stKey);
+        sayAlert('🔔 지금 '+locPart(ev)+'‘'+ev.summary+'’ 시작할 시간이에요!', ev);
+        W.notify('회의 시작', tag(ev)); wiggle();
+      }
+    });
+    updateMood();
+  }
+
+
+  // 상태 기반 반응 (의미 있을 때만 움직임)
+  //  chill = 오늘 아무것도 없음 → 느긋하게, 가끔 기지개
+  //  그 외(평상시) = 조용히 (동작 없음)
+  var mood='normal', moodTimer=null;
+  var MOOD_ACT={ chill:{act:'stretch', every:150000} };
+  function computeMood(){
+    if(!todayEvents.length && !tasks.length) return 'chill';
+    return 'normal';
+  }
+  function updateMood(){
+    var m=computeMood();
+    if(m!==mood){
+      mood=m;
+      mascotWrap.classList.toggle('m-chill', m==='chill');
+      scheduleMoodAct();
+    }
+  }
+  function scheduleMoodAct(){
+    if(moodTimer) clearTimeout(moodTimer);
+    var cfg=MOOD_ACT[mood]; if(!cfg) return;
+    moodTimer=setTimeout(function(){
+      if(!drag && computeMood()===mood) doAct(cfg.act);
+      scheduleMoodAct();
+    }, cfg.every);
+  }
+
+  // 초기화
+  (async function init(){
+    var cfg=await W.getConfig();
+    if(cfg && cfg.icalUrl) document.getElementById('urlInput').value=cfg.icalUrl;
+    applyChar(cfg && cfg.character);
+    if(cfg && cfg.secret) unlockSecret(false);
+    setExpanded(false);
+    setTab('cal');
+    todos = (await W.getTodos()) || [];
+    renderTodos();
+    await load(false);
+    if(notConfigured){
+      setExpanded(true); settings.classList.add('show'); refreshViews();
+      say('처음이시죠? 구글 캘린더 주소를 넣으면 시작돼요!', 10000);
+    } else {
+      say('안녕하세요! 눌러서 오늘 일정 확인하세요 🐾', 6000);
+    }
+    if(W.onRefresh) W.onRefresh(function(){ load(true, true); });
+    document.getElementById('refreshBtn').addEventListener('click', function(){ load(true, true); });
+    setInterval(function(){ checkAlerts(); updateSync(); refreshNextBar(); }, 30000);
+    setInterval(function(){ load(false, true); refreshToday(); }, 10*60000); // 10분마다 갱신
+    checkAlerts();
+    updateMood();
+  })();
+})();
+</script>
+</body>
+</html>
