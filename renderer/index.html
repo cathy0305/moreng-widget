@@ -299,7 +299,7 @@
 
   var expanded=false, events=[], todayEvents=[], tasks=[], todos=[], fired=new Set();
   var bubbleTimer=null, bubbleVisible=false, drag=null, dayOffset=0, tabMode='cal';
-  var SIZES={base:{w:380,h:400}, expanded:{w:380,h:560}};
+  var SIZES={base:{w:380,h:400}, expanded:{w:380,h:680}};
   function applySize(){ var s = expanded?SIZES.expanded:SIZES.base; W.resize(s.w, s.h); }
 
   // 투명한 빈 영역은 클릭이 뒤 앱으로 통과되게 (마우스가 실제 요소 위에 있을 때만 잡음)

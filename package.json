@@ -1,6 +1,6 @@
 {
   "name": "wanted-calendar-widget",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "데스크톱에 떠있는 모렝이 위젯 — 오늘 구글 캘린더 일정 정리 + 회의 시간 말풍선 알림",
   "main": "main.js",
   "scripts": {
