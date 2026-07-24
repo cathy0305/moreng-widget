@@ -108,8 +108,10 @@
   .task.over .due{color:#e5484d}
 
   /* 설정 */
-  #settings{display:none;flex-direction:column;gap:10px;padding:16px}
+  #settings{display:none;flex-direction:column;gap:10px;padding:16px;flex:1;min-height:0;overflow-y:auto}
   #settings.show{display:flex}
+  #settings::-webkit-scrollbar{width:7px}
+  #settings::-webkit-scrollbar-thumb{background:#eceaf2;border-radius:10px}
   #settings label{font-size:12.5px;font-weight:800;color:var(--ink)}
   #settings p{font-size:11.5px;color:var(--sub);margin:0;line-height:1.55;font-weight:500}
   #settings input{width:100%;font-size:12px;padding:11px;border:1.5px solid var(--line);border-radius:11px;
