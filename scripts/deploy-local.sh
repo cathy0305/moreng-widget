@@ -17,7 +17,7 @@ echo "▶ 이전 빌드 정리…"
 rm -rf "$APP_DST" dist
 
 echo "▶ 빌드 + 서명…"
-npx electron-builder -m
+npx electron-builder -m --publish never
 
 if [ ! -d "$APP_SRC" ]; then
   echo "❌ 빌드 결과물이 없습니다: $APP_SRC"

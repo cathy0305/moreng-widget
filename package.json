@@ -6,8 +6,8 @@
   "scripts": {
     "start": "electron .",
     "pack": "electron-builder --dir -m",
-    "dist:mac": "electron-builder -m",
-    "dist:win": "electron-builder -w",
+    "dist:mac": "electron-builder -m --publish never",
+    "dist:win": "electron-builder -w --publish never",
     "deploy": "bash scripts/deploy-local.sh"
   },
   "dependencies": {
