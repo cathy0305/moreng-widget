@@ -133,7 +133,7 @@ function createTray() {
   if (!img.isEmpty()) img = img.resize({ width: isMac ? 18 : 16, height: isMac ? 18 : 16 });
   if (isMac) img.setTemplateImage(true);
   tray = new Tray(img);
-  tray.setToolTip('모렝이 일정위젯');
+  tray.setToolTip('머랭이 일정위젯');
   tray.on('click', () => tray.popUpContextMenu());
   refreshTrayMenu();
 }
