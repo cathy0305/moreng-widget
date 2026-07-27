@@ -301,8 +301,13 @@
 
   var expanded=false, events=[], todayEvents=[], tasks=[], todos=[], fired=new Set();
   var bubbleTimer=null, bubbleVisible=false, drag=null, dayOffset=0, tabMode='cal';
-  var SIZES={base:{w:380,h:400}, expanded:{w:380,h:680}};
-  function applySize(){ var s = expanded?SIZES.expanded:SIZES.base; W.resize(s.w, s.h); }
+  // 평소엔 캐릭터 크기만큼만(idle) → 화면 최상단까지 이동 가능.
+  // 말풍선 뜨면 bubble, 패널 열면 expanded 로만 커진다(아래 고정으로 위로 자람).
+  var SIZES={idle:{w:190,h:186}, bubble:{w:380,h:400}, expanded:{w:380,h:680}};
+  function applySize(){
+    var s = expanded ? SIZES.expanded : (bubbleVisible ? SIZES.bubble : SIZES.idle);
+    W.resize(s.w, s.h);
+  }
 
   // 투명한 빈 영역은 클릭이 뒤 앱으로 통과되게 (마우스가 실제 요소 위에 있을 때만 잡음)
   var ignoring=null;
@@ -356,6 +361,7 @@
     bubble.classList.remove('show'); bubble.style.pointerEvents='none';
     if(bubbleTimer){ clearTimeout(bubbleTimer); bubbleTimer=null; }
     bubbleVisible=false;
+    applySize(); // 말풍선 닫히면 다시 작게
   }
   // btns: [{cls,label,act}]
   function renderBubble(text, btns, closable){
@@ -376,6 +382,7 @@
     }
     bubble.classList.add('show');
     bubbleVisible=true;
+    applySize(); // 말풍선 자리 확보 위해 창 키움 (아래 고정으로 위로 자람)
   }
   // 일반 안내 — 시간 지나면 자동으로 사라짐
   function say(msg, ms, link){
@@ -414,16 +421,19 @@
 
   // 캐릭터: 드래그로 이동, 살짝 눌렀다 떼면(=클릭) 패널 토글
   var mascotWrap=document.getElementById('mascotWrap');
-  mascot.addEventListener('mousedown', function(e){ e.preventDefault(); drag={sx:e.screenX, sy:e.screenY, moved:0};
+  mascot.addEventListener('mousedown', function(e){ e.preventDefault();
+    drag={x0:e.screenX, y0:e.screenY, moved:0}; W.dragStart();
     mascot.classList.add('dragging'); mascotWrap.classList.add('dragging'); });
   window.addEventListener('mousemove', function(e){
     if(!drag) return;
-    var dx=e.screenX-drag.sx, dy=e.screenY-drag.sy;
-    if(dx||dy){ W.moveBy(dx,dy); drag.moved+=Math.abs(dx)+Math.abs(dy); drag.sx=e.screenX; drag.sy=e.screenY; }
+    // 위치 계산은 main 이 커서 좌표로 처리 (멀티모니터/배율 안전). 여기선 이동 신호만 보냄.
+    W.dragMove();
+    // 클릭 vs 드래그 판정용 거리 (임계값만 쓰므로 배율 무관)
+    drag.moved = Math.abs(e.screenX-drag.x0)+Math.abs(e.screenY-drag.y0);
   });
   window.addEventListener('mouseup', function(){
     if(!drag) return;
-    var moved=drag.moved; drag=null;
+    var moved=drag.moved; drag=null; W.dragEnd();
     mascot.classList.remove('dragging'); mascotWrap.classList.remove('dragging');
     if(moved<5) handleTap();
   });

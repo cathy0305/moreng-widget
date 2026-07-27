@@ -8,7 +8,9 @@ let win = null;
 let tray = null;
 // 기본 창은 캐릭터 + 말풍선이 모두 들어갈 만큼 넉넉하게.
 // (말풍선 뜰 때마다 창 크기를 바꾸면 화면이 튀어서, 크기는 패널 열 때만 바뀝니다)
-const COLLAPSED = { w: 380, h: 400 };
+// 평소(말풍선/패널 없음)엔 캐릭터 크기만큼만. 말풍선·패널 뜰 때만 렌더러가 창을 키운다.
+// (이렇게 해야 캐릭터를 화면 최상단까지 끌어올릴 수 있음 — 위쪽 빈 공간이 천장에 먼저 안 닿음)
+const COLLAPSED = { w: 190, h: 186 };
 
 function configPath() { return path.join(app.getPath('userData'), 'config.json'); }
 function loadConfig() {
@@ -64,11 +66,28 @@ ipcMain.on('resize', (e, size) => {
 });
 
 // 캐릭터 드래그로 창 이동
-ipcMain.on('move-by', (e, d) => {
-  if (!win || !d) return;
+// (멀티모니터 + 서로 다른 배율에서 렌더러의 screenX 델타는 좌표계가 어긋나므로,
+//  main 프로세스의 커서 좌표(getCursorScreenPoint)로 절대 위치를 계산한다. 둘 다 DIP라 안 어긋남)
+let dragOffset = null;
+ipcMain.on('drag-start', () => {
+  if (!win) return;
+  const c = screen.getCursorScreenPoint();
   const b = win.getBounds();
-  win.setBounds({ x: b.x + Math.round(d.dx), y: b.y + Math.round(d.dy), width: b.width, height: b.height });
+  dragOffset = { x: c.x - b.x, y: c.y - b.y };
 });
+ipcMain.on('drag-move', () => {
+  if (!win || !dragOffset) return;
+  const c = screen.getCursorScreenPoint();
+  const b = win.getBounds();
+  const work = screen.getDisplayNearestPoint(c).workArea; // 커서가 있는 모니터 기준
+  let x = c.x - dragOffset.x;
+  let y = c.y - dragOffset.y;
+  // 창이 화면 밖으로 완전히 벗어나지 않게 클램프 (한가운데서 멈추던 문제 방지)
+  x = Math.max(work.x, Math.min(x, work.x + work.width - b.width));
+  y = Math.max(work.y, Math.min(y, work.y + work.height - b.height));
+  win.setBounds({ x: Math.round(x), y: Math.round(y), width: b.width, height: b.height });
+});
+ipcMain.on('drag-end', () => { dragOffset = null; });
 
 ipcMain.handle('get-config', () => loadConfig());
 // 부분 저장도 안전하도록 기존 설정과 병합
@@ -127,11 +146,21 @@ ipcMain.on('open-link', (e, url) => {
 // 메뉴바(트레이) 아이콘
 function createTray() {
   const isMac = process.platform === 'darwin';
-  // 맥은 흑백 템플릿 아이콘(메뉴바 자동 대응), 윈도우는 컬러 아이콘이 잘 보임
-  const iconFile = isMac ? 'tray.png' : 'tray-win.png';
-  let img = nativeImage.createFromPath(path.join(__dirname, 'assets', iconFile));
-  if (!img.isEmpty()) img = img.resize({ width: isMac ? 18 : 16, height: isMac ? 18 : 16 });
-  if (isMac) img.setTemplateImage(true);
+  let img;
+  if (isMac) {
+    // 맥은 흑백 템플릿 아이콘(메뉴바 라이트/다크 자동 대응)
+    img = nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray.png'));
+    if (!img.isEmpty()) img = img.resize({ width: 18, height: 18 });
+    img.setTemplateImage(true);
+  } else {
+    // 윈도우는 멀티사이즈 .ico 를 그대로 넘긴다 — 트레이가 DPI에 맞는 크기를 골라 선명하게 표시.
+    // (예전엔 32px PNG 한 장을 16px로 줄여 써서 작은 트레이에서 뭉개졌음)
+    img = nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray-win.ico'));
+    if (img.isEmpty()) { // 혹시 .ico 로드 실패 시 PNG 폴백
+      img = nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray-win.png'));
+      if (!img.isEmpty()) img = img.resize({ width: 16, height: 16 });
+    }
+  }
   tray = new Tray(img);
   tray.setToolTip('머랭이 일정위젯');
   tray.on('click', () => tray.popUpContextMenu());

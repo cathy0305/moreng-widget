@@ -1,6 +1,6 @@
 {
   "name": "wanted-calendar-widget",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "데스크톱에 떠있는 머랭이 위젯 — 오늘 구글 캘린더 일정 정리 + 회의 시간 말풍선 알림",
   "main": "main.js",
   "scripts": {
@@ -28,6 +28,7 @@
       "renderer/**/*",
       "assets/tray.png",
       "assets/tray-win.png",
+      "assets/tray-win.ico",
       "package.json"
     ],
     "mac": {
