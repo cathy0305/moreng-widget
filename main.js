@@ -10,7 +10,7 @@ let tray = null;
 // (말풍선 뜰 때마다 창 크기를 바꾸면 화면이 튀어서, 크기는 패널 열 때만 바뀝니다)
 // 평소(말풍선/패널 없음)엔 캐릭터 크기만큼만. 말풍선·패널 뜰 때만 렌더러가 창을 키운다.
 // (이렇게 해야 캐릭터를 화면 최상단까지 끌어올릴 수 있음 — 위쪽 빈 공간이 천장에 먼저 안 닿음)
-const COLLAPSED = { w: 190, h: 186 };
+const COLLAPSED = { w: 190, h: 140 };
 
 function configPath() { return path.join(app.getPath('userData'), 'config.json'); }
 function loadConfig() {
@@ -41,6 +41,8 @@ function createWindow() {
   }
   // 기본은 클릭이 뒤로 통과되게. 캐릭터/패널 위에 마우스가 오면 렌더러가 꺼줍니다.
   win.setIgnoreMouseEvents(true, { forward: true });
+  // 초기 앵커 = 시작 위치의 우하단 코너
+  anchor = { right: x + COLLAPSED.w, bottom: y + COLLAPSED.h };
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 }
 
@@ -50,19 +52,30 @@ ipcMain.on('set-ignore', (e, ignore) => {
   win.setIgnoreMouseEvents(!!ignore, { forward: true });
 });
 
-// 리사이즈 시 우하단 코너 고정 (렌더러가 원하는 w,h 전달)
+// 캐릭터의 우하단 위치를 "앵커"로 기억해 둔다.
+// 리사이즈(말풍선/패널)는 항상 이 앵커 기준으로 잡아서,
+// 맨 위에서 말풍선 때문에 잠깐 아래로 밀려도 말풍선을 닫으면 원위치로 복귀한다.
+// 앵커는 사용자가 드래그로 옮길 때만 갱신된다.
+let anchor = null;
+function setAnchorFromBounds() {
+  if (!win) return;
+  const b = win.getBounds();
+  anchor = { right: b.x + b.width, bottom: b.y + b.height };
+}
+
+// 리사이즈 시 앵커(우하단) 고정 (렌더러가 원하는 w,h 전달)
 ipcMain.on('resize', (e, size) => {
   if (!win || !size) return;
-  const b = win.getBounds();
-  const work = screen.getDisplayMatching(b).workArea;
-  const right = b.x + b.width;
-  const bottom = b.y + b.height;
+  if (!anchor) setAnchorFromBounds();
+  const work = screen.getDisplayMatching(win.getBounds()).workArea;
+  const w = Math.round(size.w);
   const h = Math.min(Math.round(size.h), work.height); // 화면보다 크지 않게
-  win.setBounds({
-    x: Math.round(right - size.w),
-    y: Math.max(work.y, Math.round(bottom - h)),        // 화면 위로 넘어가지 않게
-    width: Math.round(size.w), height: h,
-  });
+  let x = anchor.right - w;
+  let y = anchor.bottom - h;
+  // 화면 안으로만 클램프 (앵커 값 자체는 유지 → 말풍선 닫으면 복귀)
+  x = Math.max(work.x, Math.min(x, work.x + work.width - w));
+  y = Math.max(work.y, y);                              // 위로 넘어가면 잠깐 내려가되 앵커는 그대로
+  win.setBounds({ x: Math.round(x), y: Math.round(y), width: w, height: h });
 });
 
 // 캐릭터 드래그로 창 이동
@@ -86,6 +99,8 @@ ipcMain.on('drag-move', () => {
   x = Math.max(work.x, Math.min(x, work.x + work.width - b.width));
   y = Math.max(work.y, Math.min(y, work.y + work.height - b.height));
   win.setBounds({ x: Math.round(x), y: Math.round(y), width: b.width, height: b.height });
+  // 드래그로 옮긴 위치를 새 앵커로 저장 (말풍선/패널 리사이즈의 기준점)
+  anchor = { right: Math.round(x) + b.width, bottom: Math.round(y) + b.height };
 });
 ipcMain.on('drag-end', () => { dragOffset = null; });
 

@@ -303,7 +303,7 @@
   var bubbleTimer=null, bubbleVisible=false, drag=null, dayOffset=0, tabMode='cal';
   // 평소엔 캐릭터 크기만큼만(idle) → 화면 최상단까지 이동 가능.
   // 말풍선 뜨면 bubble, 패널 열면 expanded 로만 커진다(아래 고정으로 위로 자람).
-  var SIZES={idle:{w:190,h:186}, bubble:{w:380,h:400}, expanded:{w:380,h:680}};
+  var SIZES={idle:{w:190,h:140}, bubble:{w:380,h:400}, expanded:{w:380,h:680}};
   function applySize(){
     var s = expanded ? SIZES.expanded : (bubbleVisible ? SIZES.bubble : SIZES.idle);
     W.resize(s.w, s.h);
